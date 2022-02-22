@@ -463,8 +463,11 @@ def zero_row_min(x: Tensor) -> Tensor:
     ##########################################################################
     #                      TODO: Implement this function                     #
     ##########################################################################
-    # Replace "pass" statement with your code
-    pass
+    idx0 = torch.arange(0, x.shape[0])
+    row_min_vals, row_min_idxs = x.min(dim=1)
+
+    y = torch.clone(x)
+    y[idx0, row_min_idxs] = 0
     ##########################################################################
     #                            END OF YOUR CODE                            #
     ##########################################################################
@@ -519,8 +522,11 @@ def batched_matrix_multiply_loop(x: Tensor, y: Tensor) -> Tensor:
     ###########################################################################
     #                      TODO: Implement this function                      #
     ###########################################################################
-    # Replace "pass" statement with your code
-    pass
+    b = x.shape[0]
+    z = torch.tensor([])
+    for i in range(0, b):
+        z = torch.cat((z, torch.mm(x[i], y[i])), 0)
+    print(z)
     ###########################################################################
     #                           END OF YOUR CODE                              #
     ###########################################################################
@@ -550,8 +556,7 @@ def batched_matrix_multiply_noloop(x: Tensor, y: Tensor) -> Tensor:
     ###########################################################################
     #                      TODO: Implement this function                      #
     ###########################################################################
-    # Replace "pass" statement with your code
-    pass
+    z = torch.bmm(x, y)
     ###########################################################################
     #                            END OF YOUR CODE                             #
     ###########################################################################
