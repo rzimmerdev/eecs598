@@ -51,6 +51,7 @@ def compute_distances_two_loops(x_train: torch.Tensor, x_test: torch.Tensor):
     # same datatype and device as x_train
     num_train = x_train.shape[0]
     num_test = x_test.shape[0]
+
     dists = x_train.new_zeros(num_train, num_test)
     ##########################################################################
     # TODO: Implement this function using a pair of nested loops over the    #
@@ -59,8 +60,10 @@ def compute_distances_two_loops(x_train: torch.Tensor, x_test: torch.Tensor):
     # You may not use torch.norm (or its instance method variant), nor any   #
     # functions from torch.nn or torch.nn.functional.                        #
     ##########################################################################
-    # Replace "pass" statement with your code
-    pass
+    for i in range(0, num_train):
+        for j in range(0, num_test):
+            dists[i][j] = ((x_train[i].flatten() - x_test[j].flatten()).square()).sum()
+            continue
     ##########################################################################
     #                           END OF YOUR CODE                             #
     ##########################################################################
@@ -103,8 +106,8 @@ def compute_distances_one_loop(x_train: torch.Tensor, x_test: torch.Tensor):
     # You may not use torch.norm (or its instance method variant), nor any   #
     # functions from torch.nn or torch.nn.functional.                        #
     ##########################################################################
-    # Replace "pass" statement with your code
-    pass
+    for i in range(0, num_train):
+        dists[i] = (x_test.reshape(num_test, -1) - x_train[i].flatten()).square().sum(axis=1)
     ##########################################################################
     #                           END OF YOUR CODE                             #
     ##########################################################################
@@ -155,8 +158,16 @@ def compute_distances_no_loops(x_train: torch.Tensor, x_test: torch.Tensor):
     # HINT: Try to formulate the Euclidean distance using two broadcast sums #
     #       and a matrix multiply.                                           #
     ##########################################################################
-    # Replace "pass" statement with your code
-    pass
+
+    x_a = x_train.reshape(num_train, -1)
+    x_b = x_test.reshape(num_test, -1)
+
+    sum = x_a.square().sum(dim=1).reshape(num_train, 1) + x_b.square().sum(dim=1).t()
+
+    mm = torch.matmul(x_a, x_b.t())
+
+    dists = sum - 2 * mm
+
     ##########################################################################
     #                           END OF YOUR CODE                             #
     ##########################################################################
@@ -198,8 +209,9 @@ def predict_labels(dists: torch.Tensor, y_train: torch.Tensor, k: int = 1):
     #                                                                        #
     # HINT: Look up the function torch.topk                                  #
     ##########################################################################
-    # Replace "pass" statement with your code
-    pass
+    for i in range(num_test):
+        y_pred[i] = torch.topk(torch.bincount(y_train[torch.topk(dists[:, i], k, largest=False).indices]
+                                              .to(dtype=torch.int64)), 1).indices[0].item()
     ##########################################################################
     #                           END OF YOUR CODE                             #
     ##########################################################################
@@ -222,8 +234,8 @@ class KnnClassifier:
         # no computation and simply memorize the training data in            #
         # `self.x_train` and `self.y_train`, accordingly.                    #
         ######################################################################
-        # Replace "pass" statement with your code
-        pass
+        self.x_train = x_train
+        self.y_train = y_train
         ######################################################################
         #                         END OF YOUR CODE                           #
         ######################################################################
@@ -246,19 +258,21 @@ class KnnClassifier:
         # wrote above for computing distances (use the no-loop variant) and  #
         # to predict output labels.                                          #
         ######################################################################
-        # Replace "pass" statement with your code
-        pass
+        dists = compute_distances_no_loops(self.x_train, x_test)
+
+        y_test_pred = predict_labels(dists, self.y_train, k)
+
         ######################################################################
         #                         END OF YOUR CODE                           #
         ######################################################################
         return y_test_pred
 
     def check_accuracy(
-        self,
-        x_test: torch.Tensor,
-        y_test: torch.Tensor,
-        k: int = 1,
-        quiet: bool = False
+            self,
+            x_test: torch.Tensor,
+            y_test: torch.Tensor,
+            k: int = 1,
+            quiet: bool = False
     ):
         """
         Utility method for checking the accuracy of this classifier on test
@@ -289,10 +303,10 @@ class KnnClassifier:
 
 
 def knn_cross_validate(
-    x_train: torch.Tensor,
-    y_train: torch.Tensor,
-    num_folds: int = 5,
-    k_choices: List[int] = [1, 3, 5, 8, 10, 12, 15, 20, 50, 100],
+        x_train: torch.Tensor,
+        y_train: torch.Tensor,
+        num_folds: int = 5,
+        k_choices: List[int] = [1, 3, 5, 8, 10, 12, 15, 20, 50, 100],
 ):
     """
     Perform cross-validation for `KnnClassifier`.
@@ -320,8 +334,9 @@ def knn_cross_validate(
     #                                                                        #
     # HINT: torch.chunk                                                      #
     ##########################################################################
-    # Replace "pass" statement with your code
-    pass
+    x_train_folds = x_train.chunk(num_folds)
+    y_train_folds = y_train.chunk(num_folds)
+
     ##########################################################################
     #                           END OF YOUR CODE                             #
     ##########################################################################
@@ -341,8 +356,45 @@ def knn_cross_validate(
     #                                                                        #
     # HINT: torch.cat                                                        #
     ##########################################################################
-    # Replace "pass" statement with your code
-    pass
+    for i in k_choices:
+
+        mean = 0
+        accuracies = []
+        for j in range(0, num_folds):
+            if x_train_folds[:j]:
+                x_train_slice_s = torch.cat(x_train_folds[:j], 0)
+            else:
+                x_train_slice_s = torch.tensor([])
+
+            if x_train_folds[j+1:]:
+                x_train_slice_f = torch.cat(x_train_folds[j + 1:], 0)
+            else:
+                x_train_slice_f = torch.tensor([])
+
+            x_train_slice = torch.cat((x_train_slice_s, x_train_slice_f), 0)
+
+            if y_train_folds[:j]:
+                y_train_slice_s = torch.cat(y_train_folds[:j], 0)
+            else:
+                y_train_slice_s = torch.tensor([])
+
+            if y_train_folds[j + 1:]:
+                y_train_slice_f = torch.cat(y_train_folds[j + 1:], 0)
+            else:
+                y_train_slice_f = torch.tensor([])
+
+            y_train_slice = torch.cat((y_train_slice_s, y_train_slice_f), 0)
+
+            current_knn = KnnClassifier(x_train_slice, y_train_slice)
+            current_accuracy = current_knn.check_accuracy(x_train_folds[j], y_train_folds[j], i, quiet=True)
+            mean += current_accuracy
+            accuracies.append(current_accuracy)
+
+        mean /= num_folds
+
+        # k_to_accuracies[i] = mean
+        k_to_accuracies[i] = accuracies
+
     ##########################################################################
     #                           END OF YOUR CODE                             #
     ##########################################################################
@@ -371,8 +423,18 @@ def knn_get_best_k(k_to_accuracies: Dict[int, List]):
     # choose the value of k, and store result in `best_k`. You should choose #
     # the value of k that has the highest mean accuracy accross all folds.   #
     ##########################################################################
-    # Replace "pass" statement with your code
-    pass
+
+    best_accuracy = 0
+
+    for k, accuracies in k_to_accuracies.items():
+        mean = 0
+        for i in accuracies:
+            mean += i
+        mean /= len(accuracies)
+        if mean > best_accuracy:
+            best_k = k
+            best_accuracy = mean
+
     ##########################################################################
     #                           END OF YOUR CODE                             #
     ##########################################################################
