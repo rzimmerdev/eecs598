@@ -14,3 +14,11 @@ Complete use cases, as well as instructions provided inside notebooks can be dow
 # A1 - Q1
 
 Simple operations on Tensors using the PyTorch library.
+
+# A1 - Q2
+
+Complete KNN and KMeans implementation from scratch
+
+# A2 - Q1
+
+SVM Implementation from scratch
